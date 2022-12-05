@@ -66,7 +66,7 @@ def process_customer_jobs(req_files, root_dir, date_sufix, nagios):
 
         sorted_paths = sorted([*set(list_paths)])
         for sort_path in sorted_paths:
-            if req_file in sort_path:
+            if req_file in sort_path: 
                 path_lst.append(sort_path)
 
     sorted_paths = sorted([*set(list_paths)])

@@ -1,5 +1,3 @@
 Dockerfile
 conf-files
-.coverage
-__pycache__/
-htmlcov
+modules/__pycache__/
