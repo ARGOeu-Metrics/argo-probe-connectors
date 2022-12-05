@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from multi_tenant_connectors_sensor import multi_tenant_connector
+
+multi_tenant_connector.main()
