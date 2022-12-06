@@ -113,7 +113,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, nagios):
 
     except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
         print(
-            f"CRITICAL - API cannot connect to 'https://' + {arguments.hostname} + '/api/v2/internal/public_tenants/")
+            f"CRITICAL - API cannot connect to https://{arguments.hostname}/api/v2/internal/public_tenants/")
 
         raise SystemExit(2)
 
