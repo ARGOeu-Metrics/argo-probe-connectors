@@ -29,10 +29,10 @@ def grouper(path):
     return d, f
 
 
-def process_customer_jobs(req_files, root_dir, date_sufix, nagios):
+def process_customer_jobs(host, req_files, root_dir, date_sufix, nagios):
 
     get_tenants = requests.get(
-        'https://poem.devel.argo.grnet.gr/api/v2/internal/public_tenants/').json()
+        f'https://poem.{host}/api/v2/internal/public_tenants/').json()
 
     job_names = list()
     list_paths = list()
@@ -66,7 +66,7 @@ def process_customer_jobs(req_files, root_dir, date_sufix, nagios):
 
         sorted_paths = sorted([*set(list_paths)])
         for sort_path in sorted_paths:
-            if req_file in sort_path: 
+            if req_file in sort_path:
                 path_lst.append(sort_path)
 
     sorted_paths = sorted([*set(list_paths)])
@@ -126,6 +126,7 @@ def main():
     options = global_conf.parse()
     root_directory = options['inputstatesavedir'][:-1]
     days_num = int(options['inputstatedays'])
+    api_host = ".".join(options['webapihost'].split(".")[1:])
     todays_date = datetime.today()
 
     days = []
@@ -140,7 +141,7 @@ def main():
     nagios = NagiosResponse("All connectors are working fine.")
     try:
         result = process_customer_jobs(
-            req_files=cmd_options, root_dir=root_directory, date_sufix=date_sufix, nagios=nagios)
+            host=api_host, req_files=cmd_options, root_dir=root_directory, date_sufix=date_sufix, nagios=nagios)
 
     except OSError as e:
         nagios.setCode(nagios.CRITICAL)
