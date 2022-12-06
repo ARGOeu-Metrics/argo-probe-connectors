@@ -28,96 +28,100 @@ def grouper(path):
     f = f.split('-')[0]
     return d, f
 
+def process_customer_jobs(arguments, root_dir, date_sufix, nagios):
+    try:
+        get_tenants = requests.get(
+            'https://' + arguments.hostname + '/api/v2/internal/public_tenants/').json()
 
-def process_customer_jobs(host, req_files, root_dir, date_sufix, nagios):
+        job_names = list()
+        list_paths = list()
+        for tenant in get_tenants:
 
-    get_tenants = requests.get(
-        f'https://poem.{host}/api/v2/internal/public_tenants/').json()
+            for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
+                for dir in dirs:
+                    if dir not in job_names and dir != []:
+                        job_names.append(dir)
 
-    job_names = list()
-    list_paths = list()
-    for tenant in get_tenants:
+                for file in files:
+                    file_path = (root + "/" + file)[:-11]
 
-        for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
-            for dir in dirs:
-                if dir not in job_names and dir != []:
-                    job_names.append(dir)
+                    if "downtimes-ok" in file:
+                        dates = copy.copy(date_sufix)[:-1]
+                        dates.insert(0, datetime.today().strftime("%Y_%m_%d"))
+                    else:
+                        dates = date_sufix
 
-            for file in files:
-                file_path = (root + "/" + file)[:-11]
+                    for sufix in dates:
+                        path_name_date = file_path + '_' + sufix
+                        file_exists = os.path.exists(path_name_date)
+                        if file_exists == True:
+                            list_paths.append(
+                                path_name_date + "=" + str(check_file_ok(path_name_date)))
 
-                if "downtimes-ok" in file:
-                    dates = copy.copy(date_sufix)[:-1]
-                    dates.insert(0, datetime.today().strftime("%Y_%m_%d"))
-                else:
-                    dates = date_sufix
-
-                for sufix in dates:
-                    path_name_date = file_path + '_' + sufix
-                    file_exists = os.path.exists(path_name_date)
-                    if file_exists == True:
-                        list_paths.append(
-                            path_name_date + "=" + str(check_file_ok(path_name_date)))
-
-    path_lst = list()
-    if len(sys.argv) > 1:
-        req_file = (vars(req_files))
-        req_file = req_file.get('filename')[0]
+        path_lst = list()
+        if "-f" in sys.argv:
+            sorted_paths = sorted([*set(list_paths)])
+            for sort_path in sorted_paths:
+                if arguments.filename[0] in sort_path:
+                    path_lst.append(sort_path)
 
         sorted_paths = sorted([*set(list_paths)])
-        for sort_path in sorted_paths:
-            if req_file in sort_path:
-                path_lst.append(sort_path)
 
-    sorted_paths = sorted([*set(list_paths)])
+        toggler = sorted_paths if path_lst == [] else path_lst
 
-    toggler = sorted_paths if path_lst == [] else path_lst
+        sorted_file = [list(g) for _, g in groupby(toggler, grouper)]
+        sorted_file_copy = copy.deepcopy(sorted_file)
+        for i, x in enumerate(sorted_file):
+            for j, a in enumerate(x):
+                rslt = a.split("=")[1]
+                sorted_file[i][j] = a.replace(a, rslt)
 
-    sorted_file = [list(g) for _, g in groupby(toggler, grouper)]
-    sorted_file_copy = copy.deepcopy(sorted_file)
-    for i, x in enumerate(sorted_file):
-        for j, a in enumerate(x):
-            rslt = a.split("=")[1]
-            sorted_file[i][j] = a.replace(a, rslt)
+        critical_msg = ""
+        warning_msg = ""
+        for path, result in zip_longest(sorted_file_copy, sorted_file):
+            splt_path = path[0].split("/")
+            tenant_name = splt_path[5]
 
-    critical_msg = ""
-    warning_msg = ""
-    for path, result in zip_longest(sorted_file_copy, sorted_file):
-        splt_path = path[0].split("/")
-        tenant_name = splt_path[5]
-
-        if splt_path[6] in job_names:
-            job = splt_path[6]
-        else:
-            job = ""
-
-        filename = splt_path[-1].split("-")[0].upper()
-
-        if all(item == "False" for item in result[-(len(dates)):]):
-            nagios.setCode(nagios.CRITICAL)
-            if job == "":
-                msg = ("CRITICAL - Customer: " + tenant_name + ", File: " + filename +
-                       " not ok for last " + str(len(dates)) + " days!" + " /")
+            if splt_path[6] in job_names:
+                job = splt_path[6]
             else:
-                msg = ("CRITICAL - Customer: " + tenant_name + ", Job: " + job + ", File: " +
-                       filename + " not ok for last " + str(len(dates)) + " days!" + " /")
-            critical_msg += (msg + " ")
+                job = ""
 
-        elif result[-1] == "False":
-            nagios.setCode(nagios.WARNING)
-            if job == "":
-                msgs = ("WARNING - Customer: " + tenant_name +
-                        ", Filename: " + filename + " /")
-            else:
-                msgs = ("WARNING - Customer: " + tenant_name + ", Job: " +
-                        job + ", Filename: " + filename + " /")
-            warning_msg += (msgs + " ")
+            filename = splt_path[-1].split("-")[0].upper()
 
-    return (critical_msg + warning_msg).rstrip(" /")
+            if all(item == "False" for item in result[-(len(dates)):]):
+                nagios.setCode(nagios.CRITICAL)
+                if job == "":
+                    msg = ("CRITICAL - Customer: " + tenant_name + ", File: " + filename +
+                           " not ok for last " + str(len(dates)) + " days!" + " /")
+                else:
+                    msg = ("CRITICAL - Customer: " + tenant_name + ", Job: " + job + ", File: " +
+                           filename + " not ok for last " + str(len(dates)) + " days!" + " /")
+                critical_msg += (msg + " ")
+
+            elif result[-1] == "False":
+                nagios.setCode(nagios.WARNING)
+                if job == "":
+                    msgs = ("WARNING - Customer: " + tenant_name +
+                            ", Filename: " + filename + " /")
+                else:
+                    msgs = ("WARNING - Customer: " + tenant_name + ", Job: " +
+                            job + ", Filename: " + filename + " /")
+                warning_msg += (msgs + " ")
+
+        return (critical_msg + warning_msg).rstrip(" /")
+
+    except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
+        print(
+            f"CRITICAL - API cannot connect to 'https://' + {arguments.hostname} + '/api/v2/internal/public_tenants/")
+
+        raise SystemExit(2)
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-H', dest='hostname',
+                        required=True, type=str, help='hostname')
     parser.add_argument('-f', dest='filename', required=False, type=str, nargs='+',
                         help='file names to monitor. Default: downtimes-ok poem-ok topology-ok weights-ok')
     cmd_options = parser.parse_args()
@@ -126,7 +130,6 @@ def main():
     options = global_conf.parse()
     root_directory = options['inputstatesavedir'][:-1]
     days_num = int(options['inputstatedays'])
-    api_host = ".".join(options['webapihost'].split(".")[1:])
     todays_date = datetime.today()
 
     days = []
@@ -141,7 +144,7 @@ def main():
     nagios = NagiosResponse("All connectors are working fine.")
     try:
         result = process_customer_jobs(
-            host=api_host, req_files=cmd_options, root_dir=root_directory, date_sufix=date_sufix, nagios=nagios)
+            arguments=cmd_options, root_dir=root_directory, date_sufix=date_sufix, nagios=nagios)
 
     except OSError as e:
         nagios.setCode(nagios.CRITICAL)
