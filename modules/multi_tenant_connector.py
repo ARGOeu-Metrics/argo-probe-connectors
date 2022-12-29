@@ -10,25 +10,31 @@ from datetime import datetime, timedelta
 from itertools import groupby, zip_longest
 from argo_connectors.config import Global
 from multi_tenant_connectors_sensor.NagiosResponse import NagiosResponse
+from multi_tenant_connectors_sensor.utils import errmsg_from_excp
 
 
 def check_file_ok(fname):
-    if os.stat(fname) and os.path.isfile(fname):
-        fh = open(fname, 'r')
-        if fh.read().strip() == 'True':
-            return True
+    try: 
+        if os.stat(fname) and os.path.isfile(fname):
+            fh = open(fname, 'r')
+            if fh.read().strip() == 'True':
+                return True
+            else:
+                return False
         else:
             return False
-    else:
-        return False
 
-
+    except OSError as e:
+        raise e
+        
 def grouper(path):
     d, f = os.path.split(path)
     f = f.split('-')[0]
     return d, f
 
-def process_customer_jobs(arguments, root_dir, date_sufix, nagios):
+def process_customer_jobs(arguments, root_dir, date_sufix):
+    nagios = NagiosResponse("All connectors are working fine.")
+
     try:
         get_tenants = requests.get(
             'https://' + arguments.hostname + '/api/v2/internal/public_tenants/').json()
@@ -109,13 +115,30 @@ def process_customer_jobs(arguments, root_dir, date_sufix, nagios):
                             job + ", Filename: " + filename + " /")
                 warning_msg += (msgs + " ")
 
-        return (critical_msg + warning_msg).rstrip(" /")
+        nagios.writeCriticalMessage(critical_msg)
+        nagios.writeWarningMessage(warning_msg)
 
-    except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
-        print(
-            f"CRITICAL - API cannot connect to https://{arguments.hostname}/api/v2/internal/public_tenants/")
 
-        raise SystemExit(2)
+    except (requests.exceptions.RequestException) as e:
+        nagios.setCode(nagios.CRITICAL)
+        nagios.writeCriticalMessage(f"CRITICAL - API cannot connect to https://{arguments.hostname}/api/v2/internal/public_tenants/:{errmsg_from_excp(e)}")
+
+    except ValueError as e:
+        nagios.setCode(nagios.CRITICAL)
+        nagios.writeCriticalMessage(f"CRITICAL - {errmsg_from_excp(e)}")
+
+    except OSError as e:
+        nagios.setCode(nagios.CRITICAL)
+        nagios.writeCriticalMessage(f"CRITICAL - {errmsg_from_excp(e)}")
+
+    except Exception as e:
+        nagios.setCode(nagios.CRITICAL)
+        nagios.writeCriticalMessage(f"CRITICAL - {errmsg_from_excp(e)}")
+
+
+    print(nagios.getMsg())
+    raise SystemExit(nagios.getCode())
+    
 
 
 def main():
@@ -140,27 +163,9 @@ def main():
 
     for day in days:
         date_sufix.append(day.strftime("%Y_%m_%d"))
-
-    nagios = NagiosResponse("All connectors are working fine.")
-    try:
-        result = process_customer_jobs(
-            arguments=cmd_options, root_dir=root_directory, date_sufix=date_sufix, nagios=nagios)
-
-    except OSError as e:
-        nagios.setCode(nagios.CRITICAL)
-        if getattr(e, 'filename', False):
-            nagios.writeCriticalMessage('{0} {1}'.format(repr(e), e.filename))
-        else:
-            nagios.writeCriticalMessage(repr(e))
-        raise SystemExit(nagios.getCode())
-
-    except Exception as e:
-        nagios.setCode(nagios.CRITICAL)
-        nagios.writeCriticalMessage(repr(e))
-        raise SystemExit(nagios.getCode())
-
-    print(result if len(result) > 0 else nagios.getMsg())
-    raise SystemExit(nagios.getCode())
+    
+    process_customer_jobs(cmd_options, root_directory, date_sufix)
+            
 
 
 if __name__ == "__main__":
