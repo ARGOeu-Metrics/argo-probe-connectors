@@ -4,8 +4,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 import os
 
-from multi_tenant_connectors_sensor.multi_tenant_connector import process_customer_jobs, check_file_ok, NagiosResponse, grouper
-
+from multi_tenant_connectors_sensor.multi_tenant_connector import process_customer_jobs, check_file_ok, NagiosResponse, grouper, return_missing_file_n_tenant, create_dates, sort_n_copy_files, extract_tenant_path
 
 class MockResponse:
     def __init__(self, data, status_code):
@@ -61,6 +60,7 @@ class ArgoProbeConnector(unittest.TestCase):
 
         self.root_dir = "/etc/mock_path/"
         self.date_sufix = '[2011-11-23]'
+        self.days_num = "3"
 
         with open("test_file.txt", "w") as f:
             f.write("True")
@@ -70,18 +70,42 @@ class ArgoProbeConnector(unittest.TestCase):
         os.remove("test_file.txt")
 
     @patch("builtins.print")
+    @patch("multi_tenant_connectors_sensor.multi_tenant_connector.extract_tenant_path")
+    @patch("multi_tenant_connectors_sensor.multi_tenant_connector.sort_n_copy_files")
+    @patch("multi_tenant_connectors_sensor.multi_tenant_connector.return_missing_file_n_tenant")
     @patch("multi_tenant_connectors_sensor.multi_tenant_connector.requests.get")
-    def test_all_passed(self, mock_requests, mock_print):
+    def test_all_passed(self, mock_requests, mock_return_missing_file_n_tenant, mock_sort_n_copy_files, mock_extract_tenant_path, mock_print):
         mock_requests.side_effect = pass_web_api
+        mock_return_missing_file_n_tenant.return_value = "foo_tenant", ""
+        mock_sort_n_copy_files.return_value = [["/var/lib/mock-connectors/states//mock_tenant/services-ok_2023_01_02=True"]], [
+            "True", "True", "True", "True", "True"], ["foo_sorted_path"]
+        mock_extract_tenant_path.return_value = ["foo_tenant_1", "foo_tenant_2"], [
+            "foo_job_1", "foo_job_2"], ["foo_file_1", "foo_file_2"]
 
         with self.assertRaises(SystemExit) as e:
             process_customer_jobs(
-                self.arguments, self.root_dir, self.date_sufix)
+                self.arguments, self.root_dir, self.date_sufix, self.days_num)
 
         mock_print.assert_called_once_with(
             'OK - All connectors are working fine.')
 
         self.assertEqual(e.exception.code, 0)
+
+    @patch("builtins.print")
+    @patch("multi_tenant_connectors_sensor.multi_tenant_connector.return_missing_file_n_tenant")
+    @patch("multi_tenant_connectors_sensor.multi_tenant_connector.requests.get")
+    def test_state_dir_missing(self, mock_requests, mock_return_missing_file_n_tenant, mock_print):
+        mock_requests.side_effect = pass_web_api
+        mock_return_missing_file_n_tenant.return_value = "foo_tenant", ""
+
+        with self.assertRaises(SystemExit) as e:
+            process_customer_jobs(
+                self.arguments, self.root_dir, self.date_sufix, self.days_num)
+
+        mock_print.assert_called_once_with(
+            'CRITICAL - SaveDir is empty')
+
+        self.assertEqual(e.exception.code, 2)
 
     @patch("builtins.print")
     @patch("multi_tenant_connectors_sensor.multi_tenant_connector.requests.Response")
@@ -92,7 +116,7 @@ class ArgoProbeConnector(unittest.TestCase):
 
         with self.assertRaises(SystemExit) as e:
             process_customer_jobs(
-                self.arguments, self.root_dir, self.date_sufix)
+                self.arguments, self.root_dir, self.date_sufix, self.days_num)
 
         mock_print.assert_called_once_with(
             'CRITICAL - API cannot connect to https://mock_hostname/api/v2/internal/public_tenants/:None')
@@ -109,7 +133,7 @@ class ArgoProbeConnector(unittest.TestCase):
 
         with self.assertRaises(SystemExit) as e:
             process_customer_jobs(
-                self.arguments, self.root_dir, self.date_sufix)
+                self.arguments, self.root_dir, self.date_sufix, self.days_num)
 
         mock_print.assert_called_once_with(
             'CRITICAL - [Errno 2] No such file or directory ValueError has occured ')
@@ -148,7 +172,7 @@ class ArgoProbeConnector(unittest.TestCase):
 
         with self.assertRaises(SystemExit) as e:
             process_customer_jobs(
-                self.arguments, self.root_dir, self.date_sufix)
+                self.arguments, self.root_dir, self.date_sufix, self.days_num)
 
         mock_print.assert_called_once_with(
             'CRITICAL - [Errno 2] No such file or directory ')
@@ -164,7 +188,7 @@ class ArgoProbeConnector(unittest.TestCase):
 
         with self.assertRaises(SystemExit) as e:
             process_customer_jobs(
-                self.arguments, self.root_dir, self.date_sufix)
+                self.arguments, self.root_dir, self.date_sufix, self.days_num)
 
         mock_print.assert_called_once_with('CRITICAL - None')
 
