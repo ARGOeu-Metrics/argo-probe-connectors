@@ -4,11 +4,10 @@ import os
 import argparse
 import copy
 import requests
-import re
 
 from datetime import datetime, timedelta
 from itertools import groupby, zip_longest
-from argo_connectors.config import Global
+from argo_connectors.config import Global, CustomerConf
 from multi_tenant_connectors_sensor.NagiosResponse import NagiosResponse
 from multi_tenant_connectors_sensor.utils import errmsg_from_excp
 
@@ -92,11 +91,12 @@ def sort_n_copy_files(list_paths):
     return sorted_file_copy, sorted_file, sorted_paths
 
 
-def extract_tenant_path(path, job_names):
-    splt_path = path[0].split("/")
-    tenant_name = splt_path[6]
-    if splt_path[7] in job_names:
-        job = splt_path[7]
+def extract_tenant_path(root_dir, path, job_names):
+    path_no_root = [item.replace(root_dir, '') for item in path]
+    splt_path = path_no_root[0].split("/")
+    tenant_name = splt_path[1]
+    if splt_path[2] in job_names:
+        job = splt_path[2]
     else:
         job = ""
     filename = splt_path[-1].split("-")[0].upper()
@@ -154,7 +154,8 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                 critical_msg += (msg + " ")
 
         for path, result in zip_longest(sorted_file_copy, sorted_file):
-            tenant_name, job, filename = extract_tenant_path(path, job_names)
+            tenant_name, job, filename = extract_tenant_path(
+                root_dir, path, job_names)
 
             if all(item == "False" for item in result[-(int(days_num)):]):
                 nagios.setCode(nagios.CRITICAL)
@@ -212,6 +213,7 @@ def main():
     cmd_options = parser.parse_args()
     global_conf = Global(None)
     options = global_conf.parse()
+
     root_directory = options['inputstatesavedir']
     days_num = int(options['inputstatedays'])
     todays_date = datetime.today()
@@ -221,7 +223,6 @@ def main():
         days.append(todays_date + timedelta(days=-i))
 
     date_sufix = []
-
     for day in days:
         date_sufix.append(day.strftime("%Y_%m_%d"))
 
