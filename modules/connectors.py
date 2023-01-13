@@ -56,6 +56,20 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
         result_out_dates.append(out_dates)
         result_in_dates_sublists.append(in_dates_sublst)
 
+    today = datetime.today().strftime("%Y_%m_%d")
+    list_missing_today = []
+    for lst in result_in_dates_sublists:
+        miss_today = [[] if any(today in w for w in sub_l) else [
+            sub_l[0].partition('_')[0]] for sub_l in lst]
+        miss_today = [i for i in miss_today if 'downtimes-ok' in i]
+        list_missing_today.append(miss_today)
+    miss_today_position = [i for i, sublist1 in enumerate(list_missing_today) if any(
+        ['downtimes-ok' in sublist2 for sublist2 in sublist1])]
+    missing_today_tenant = [list_root[i].split(
+        "/")[6] for i in miss_today_position]
+    missing_today_files = [
+        x for sublist1 in list_missing_today for sublist2 in sublist1 for x in sublist2 if x != []]
+
     ystday_date = (datetime.today() - timedelta(days=1)).strftime("%Y_%m_%d")
     list_missing_yestday = []
     for lst in result_in_dates_sublists:
@@ -85,7 +99,7 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
                       for i in missing_elem_positions]
     missing_files = [elem[0] for elem in missing if len(elem) == 1]
 
-    return missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files
+    return missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files, missing_today_tenant, missing_today_files
 
 
 def create_dates(files, date_sufix):
@@ -157,7 +171,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         date_list = [(datetime.today() - timedelta(days=x)
                       ).strftime('%Y_%m_%d') for x in range(4)]
 
-        missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files = return_missing_file_n_tenant(
+        missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files, missing_today_tenant, missing_today_files = return_missing_file_n_tenant(
             list_files, date_list, list_root)
         sorted_file_copy, sorted_file, sorted_paths = sort_n_copy_files(
             list_paths)
@@ -177,6 +191,13 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                 nagios.setCode(nagios.CRITICAL)
                 msg = ("CRITICAL - Customer: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
                        " is missing for last day!" + " /")
+                critical_msg += (msg + " ")
+
+        if missing_today_files != "":
+            for i in range(len(missing_today_tenant)):
+                nagios.setCode(nagios.CRITICAL)
+                msg = ("CRITICAL - Customer: " + missing_today_tenant[i] + ", State of a file: " + missing_today_files[i].upper() +
+                       " is missing for today!" + " /")
                 critical_msg += (msg + " ")
 
         for path, result in zip_longest(sorted_file_copy, sorted_file):
