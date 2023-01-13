@@ -4,10 +4,11 @@ import os
 import argparse
 import copy
 import requests
+import itertools
 
 from datetime import datetime, timedelta
 from itertools import groupby, zip_longest
-from argo_connectors.config import Global, CustomerConf
+from argo_connectors.config import Global
 from multi_tenant_connectors_sensor.NagiosResponse import NagiosResponse
 from multi_tenant_connectors_sensor.utils import errmsg_from_excp
 
@@ -42,31 +43,49 @@ def remove_duplicates(s):
 
 
 def return_missing_file_n_tenant(list_files, dates, list_root):
-    result_with_dates = []
-    result_without_dates = []
+
+    result_in_dates_sublists = []
+    result_in_dates = []
+    result_out_dates = []
     for sublist in list_files:
-        with_dates = [item for item in sublist if item[-10:] in dates]
-        without_dates = [item for item in sublist if item[-10:] not in dates]
-        result_with_dates.append(with_dates)
-        result_without_dates.append(without_dates)
+        in_dates = sorted([item for item in sublist if item[-10:] in dates])
+        in_dates_sublst = [list(group) for key, group in itertools.groupby(
+            in_dates, key=lambda s: s.split("_")[0])]
+        out_dates = [item for item in sublist if item[-10:] not in dates]
+        result_in_dates.append(in_dates)
+        result_out_dates.append(out_dates)
+        result_in_dates_sublists.append(in_dates_sublst)
+
+    ystday_date = (datetime.today() - timedelta(days=1)).strftime("%Y_%m_%d")
+    list_missing_yestday = []
+    for lst in result_in_dates_sublists:
+        miss_ystday = [[] if any(ystday_date in w for w in sub_l) else [
+            sub_l[0].partition('_')[0]] for sub_l in lst]
+        list_missing_yestday.append(miss_ystday)
+
+    missing_ystday_positions = [i for i, l1 in enumerate(
+        list_missing_yestday) for j, l2 in enumerate(l1) for k, item in enumerate(l2) if item != []]
+    missing_ystday_tenant = [list_root[i].split(
+        "/")[6] for i in missing_ystday_positions]
+    missing_ystday_files = [
+        x for sublist1 in list_missing_yestday for sublist2 in sublist1 for x in sublist2 if x != []]
 
     result_x = [[item.split("_")[0] for item in sublist]
-                for sublist in result_with_dates]
+                for sublist in result_in_dates]
     result_y = [[item.split("_")[0] for item in sublist]
-                for sublist in result_without_dates]
+                for sublist in result_out_dates]
 
     results = []
     for sublist_x, sublist_y in zip(result_x, result_y):
         results.append(set(sublist_y).difference(set(sublist_x)))
 
     missing = [list(s) for s in results]
-    missing_elem_positions = [
-        i for i, elem in enumerate(missing) if elem]
+    missing_elem_positions = [i for i, elem in enumerate(missing) if elem]
     missing_tenant = [list_root[i].split("/")[6]
                       for i in missing_elem_positions]
     missing_files = [elem[0] for elem in missing if len(elem) == 1]
 
-    return missing_tenant, missing_files
+    return missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files
 
 
 def create_dates(files, date_sufix):
@@ -138,7 +157,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         date_list = [(datetime.today() - timedelta(days=x)
                       ).strftime('%Y_%m_%d') for x in range(4)]
 
-        missing_tenant, missing_files = return_missing_file_n_tenant(
+        missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files = return_missing_file_n_tenant(
             list_files, date_list, list_root)
         sorted_file_copy, sorted_file, sorted_paths = sort_n_copy_files(
             list_paths)
@@ -151,6 +170,13 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                 nagios.setCode(nagios.CRITICAL)
                 msg = ("CRITICAL - Customer: " + missing_tenant[i] + ", State of a file: " + missing_files[i].upper() +
                        " is missing for last " + str(days_num) + " days!" + " /")
+                critical_msg += (msg + " ")
+
+        if missing_ystday_files != "":
+            for i in range(len(missing_ystday_tenant)):
+                nagios.setCode(nagios.CRITICAL)
+                msg = ("CRITICAL - Customer: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
+                       " is missing for last day!" + " /")
                 critical_msg += (msg + " ")
 
         for path, result in zip_longest(sorted_file_copy, sorted_file):
