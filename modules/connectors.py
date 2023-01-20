@@ -9,8 +9,8 @@ import itertools
 from datetime import datetime, timedelta
 from itertools import groupby, zip_longest
 from argo_connectors.config import Global
-from multi_tenant_connectors_sensor.NagiosResponse import NagiosResponse
-from multi_tenant_connectors_sensor.utils import errmsg_from_excp
+from argo_probe_connectors.NagiosResponse import NagiosResponse
+from argo_probe_connectors.utils import errmsg_from_excp
 
 
 def check_file_ok(fname):
