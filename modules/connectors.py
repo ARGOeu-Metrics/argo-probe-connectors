@@ -44,9 +44,9 @@ def remove_duplicates(s):
 
 def return_missing_file_n_tenant(list_files, dates, list_root):
 
-    result_in_dates_sublists = []
-    result_in_dates = []
-    result_out_dates = []
+    result_in_dates_sublists = list()
+    result_in_dates = list()
+    result_out_dates = list()
     for sublist in list_files:
         in_dates = sorted([item for item in sublist if item[-10:] in dates])
         in_dates_sublst = [list(group) for key, group in itertools.groupby(
@@ -57,7 +57,7 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
         result_in_dates_sublists.append(in_dates_sublst)
 
     today = datetime.today().strftime("%Y_%m_%d")
-    list_missing_today = []
+    list_missing_today = list()
     for lst in result_in_dates_sublists:
         miss_today = [[] if any(today in w for w in sub_l) else [
             sub_l[0].partition('_')[0]] for sub_l in lst]
@@ -71,7 +71,7 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
         x for sublist1 in list_missing_today for sublist2 in sublist1 for x in sublist2 if x != []]
 
     ystday_date = (datetime.today() - timedelta(days=1)).strftime("%Y_%m_%d")
-    list_missing_yestday = []
+    list_missing_yestday = list()
     for lst in result_in_dates_sublists:
         miss_ystday = [[] if any(ystday_date in w for w in sub_l) else [
             sub_l[0].partition('_')[0]] for sub_l in lst]
@@ -89,7 +89,7 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
     result_y = [[item.split("_")[0] for item in sublist]
                 for sublist in result_out_dates]
 
-    results = []
+    results = list()
     for sublist_x, sublist_y in zip(result_x, result_y):
         results.append(set(sublist_y).difference(set(sublist_x)))
     missing = [list(s) for s in results]
@@ -120,7 +120,7 @@ def sort_n_copy_files(list_paths):
             rslt = a.split("=")[1]
             sorted_file[i][j] = a.replace(a, rslt)
 
-    return sorted_file_copy, sorted_file, sorted_paths
+    return sorted_file_copy, sorted_file
 
 
 def extract_tenant_path(root_dir, path, job_names):
@@ -135,6 +135,7 @@ def extract_tenant_path(root_dir, path, job_names):
 
     return tenant_name, job, filename
 
+
 downtime_state = 'downtimes-ok'
 metricprofile_state = 'metricprofile-ok'
 topology_state = 'topology-ok'
@@ -143,8 +144,9 @@ weights_state = 'weights-ok'
 
 def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
     nagios = NagiosResponse("All connectors are working fine.")
-    
-    file_names=[downtime_state, metricprofile_state, topology_state, weights_state]
+
+    file_names = [downtime_state, metricprofile_state,
+                  topology_state, weights_state]
 
     try:
         get_tenants = requests.get(
@@ -156,11 +158,10 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         list_root = list()
         for tenant in get_tenants:
             for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
-                
-                files_filtered = [item for item in files if any(item.startswith(file_name) for file_name in file_names)]
+                files_filtered = [item for item in files if any(
+                    item.startswith(file_name) for file_name in file_names)]
 
                 list_files.append(files_filtered)
-
                 list_root.append(root)
 
                 for dir in dirs:
@@ -183,10 +184,10 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
 
         date_list = [(datetime.today() - timedelta(days=x)
                       ).strftime('%Y_%m_%d') for x in range(4)]
-        
+
         missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files, missing_today_tenant, missing_today_files = return_missing_file_n_tenant(
             list_files, date_list, list_root)
-        sorted_file_copy, sorted_file, sorted_paths = sort_n_copy_files(list_paths)
+        sorted_file_copy, sorted_file = sort_n_copy_files(list_paths)
 
         warning_msg = ""
         critical_msg = ""
@@ -196,9 +197,8 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                 for elem in sublist:
                     nagios.setCode(nagios.CRITICAL)
                     msg = ("CRITICAL - Customer: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
-                        " is missing for last " + str(days_num) + " days!" + " /")
+                           " is missing for last " + str(days_num) + " days!" + " /")
                     critical_msg += (msg + " ")
-
 
         if missing_ystday_files != "":
             for i in range(len(missing_ystday_tenant)):
@@ -238,9 +238,12 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                             job + ", Filename: " + filename + " /")
                 warning_msg += (msgs + " ")
 
-        nagios.writeCriticalMessage(critical_msg)
-        nagios.writeWarningMessage(warning_msg)
-
+        if len(list_root) == 0:
+            nagios.setCode(nagios.CRITICAL)
+            nagios.writeCriticalMessage("CRITICAL - SaveDir is empty")
+        else:
+            nagios.writeCriticalMessage(critical_msg[:-2])
+            nagios.writeWarningMessage(warning_msg[:-2])
 
     except requests.exceptions.RequestException as e:
         nagios.setCode(nagios.CRITICAL)
