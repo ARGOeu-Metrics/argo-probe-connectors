@@ -137,8 +137,17 @@ def extract_tenant_path(root_dir, path, job_names):
     return tenant_name, job, filename
 
 
+downtime_state = 'downtimes-ok'
+metricprofile_state = 'metricprofile-ok'
+topology_state = 'topology-ok'
+weights_state = 'weights-ok'
+
+
 def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
     nagios = NagiosResponse("All connectors are working fine.")
+
+    file_names = [downtime_state, metricprofile_state,
+                  topology_state, weights_state]
     try:
         get_tenants = requests.get(
             'https://' + arguments.hostname + '/api/v2/internal/public_tenants/').json()
@@ -149,6 +158,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         list_root = list()
         for tenant in get_tenants:
             for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
+
                 list_root.append(root)
                 list_files.append(files)
 
@@ -157,16 +167,18 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                         job_names.append(dir)
 
                 for file in files:
-                    file_path = (root + "/" + file)[:-11]
+                    file_no_date = file.split("_")[0]
+                    if file_no_date in file_names:
+                        file_path = (root + "/" + file_no_date)
 
-                    dates = create_dates(file, date_sufix)
+                        dates = create_dates(file, date_sufix)
 
-                    for sufix in dates:
-                        path_name_date = file_path + '_' + sufix
-                        file_exists = os.path.exists(path_name_date)
-                        if file_exists == True:
-                            list_paths.append(
-                                path_name_date + "=" + str(check_file_ok(path_name_date)))
+                        for sufix in dates:
+                            path_name_date = file_path + '_' + sufix
+                            file_exists = os.path.exists(path_name_date)
+                            if file_exists == True:
+                                list_paths.append(
+                                    path_name_date + "=" + str(check_file_ok(path_name_date)))
 
         date_list = [(datetime.today() - timedelta(days=x)
                       ).strftime('%Y_%m_%d') for x in range(4)]
