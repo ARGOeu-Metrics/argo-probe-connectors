@@ -92,12 +92,11 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
     results = []
     for sublist_x, sublist_y in zip(result_x, result_y):
         results.append(set(sublist_y).difference(set(sublist_x)))
-
     missing = [list(s) for s in results]
     missing_elem_positions = [i for i, elem in enumerate(missing) if elem]
     missing_tenant = [list_root[i].split("/")[6]
                       for i in missing_elem_positions]
-    missing_files = [elem[0] for elem in missing if len(elem) == 1]
+    missing_files = [elem for elem in missing if len(elem) > 0]
 
     return missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files, missing_today_tenant, missing_today_files
 
@@ -136,7 +135,6 @@ def extract_tenant_path(root_dir, path, job_names):
 
     return tenant_name, job, filename
 
-
 downtime_state = 'downtimes-ok'
 metricprofile_state = 'metricprofile-ok'
 topology_state = 'topology-ok'
@@ -145,9 +143,9 @@ weights_state = 'weights-ok'
 
 def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
     nagios = NagiosResponse("All connectors are working fine.")
+    
+    file_names=[downtime_state, metricprofile_state, topology_state, weights_state]
 
-    file_names = [downtime_state, metricprofile_state,
-                  topology_state, weights_state]
     try:
         get_tenants = requests.get(
             'https://' + arguments.hostname + '/api/v2/internal/public_tenants/').json()
@@ -158,9 +156,12 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         list_root = list()
         for tenant in get_tenants:
             for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
+                
+                files_filtered = [item for item in files if any(item.startswith(file_name) for file_name in file_names)]
+
+                list_files.append(files_filtered)
 
                 list_root.append(root)
-                list_files.append(files)
 
                 for dir in dirs:
                     if dir not in job_names and dir != []:
@@ -182,21 +183,22 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
 
         date_list = [(datetime.today() - timedelta(days=x)
                       ).strftime('%Y_%m_%d') for x in range(4)]
-
+        
         missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files, missing_today_tenant, missing_today_files = return_missing_file_n_tenant(
             list_files, date_list, list_root)
-        sorted_file_copy, sorted_file, sorted_paths = sort_n_copy_files(
-            list_paths)
+        sorted_file_copy, sorted_file, sorted_paths = sort_n_copy_files(list_paths)
 
         warning_msg = ""
         critical_msg = ""
 
         if missing_files != "":
-            for i in range(len(missing_tenant)):
-                nagios.setCode(nagios.CRITICAL)
-                msg = ("CRITICAL - Customer: " + missing_tenant[i] + ", State of a file: " + missing_files[i].upper() +
-                       " is missing for last " + str(days_num) + " days!" + " /")
-                critical_msg += (msg + " ")
+            for idx, sublist in enumerate(missing_files):
+                for elem in sublist:
+                    nagios.setCode(nagios.CRITICAL)
+                    msg = ("CRITICAL - Customer: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
+                        " is missing for last " + str(days_num) + " days!" + " /")
+                    critical_msg += (msg + " ")
+
 
         if missing_ystday_files != "":
             for i in range(len(missing_ystday_tenant)):
@@ -236,12 +238,9 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
                             job + ", Filename: " + filename + " /")
                 warning_msg += (msgs + " ")
 
-        if len(sorted_paths) == 0:
-            nagios.setCode(nagios.CRITICAL)
-            nagios.writeCriticalMessage("CRITICAL - SaveDir is empty")
-        else:
-            nagios.writeCriticalMessage(remove_duplicates(critical_msg))
-            nagios.writeWarningMessage(remove_duplicates(warning_msg))
+        nagios.writeCriticalMessage(critical_msg)
+        nagios.writeWarningMessage(warning_msg)
+
 
     except requests.exceptions.RequestException as e:
         nagios.setCode(nagios.CRITICAL)
