@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from argo_probe_connectors import connectors
+
+connectors.main()
