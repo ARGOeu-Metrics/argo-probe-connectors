@@ -194,21 +194,21 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
             for idx, sublist in enumerate(missing_files):
                 for elem in sublist:
                     nagios.setCode(nagios.CRITICAL)
-                    msg = ("Customer: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
+                    msg = ("Tenant: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
                            " is missing for last " + str(days_num) + " days!" + " /")
                     critical_msg += (msg + " ")
 
         if missing_ystday_files != "":
             for i in range(len(missing_ystday_tenant)):
                 nagios.setCode(nagios.CRITICAL)
-                msg = ("Customer: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
+                msg = ("Tenant: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
                        " is missing for last day!" + " /")
                 critical_msg += (msg + " ")
 
         if missing_today_files != "":
             for i in range(len(missing_today_tenant)):
                 nagios.setCode(nagios.CRITICAL)
-                msg = ("Customer: " + missing_today_tenant[i] + ", State of a file: " + missing_today_files[i].upper() +
+                msg = ("Tenant: " + missing_today_tenant[i] + ", State of a file: " + missing_today_files[i].upper() +
                        " is missing for today!" + " /")
                 critical_msg += (msg + " ")
 
@@ -219,20 +219,20 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
             if all(item == "False" for item in result[-(int(days_num)):]):
                 nagios.setCode(nagios.CRITICAL)
                 if job == "":
-                    msg = ("Customer: " + tenant_name + ", File: " + filename +
+                    msg = ("Tenant: " + tenant_name + ", File: " + filename +
                            " not ok for last " + str(days_num) + " days!" + " /")
                 else:
-                    msg = ("Customer: " + tenant_name + ", Job: " + job + ", File: " +
+                    msg = ("Tenant: " + tenant_name + ", Job: " + job + ", File: " +
                            filename + " not ok for last " + str(days_num) + " days!" + " /")
                 critical_msg += (msg + " ")
 
             elif result[-1] == "False":
                 nagios.setCode(nagios.WARNING)
                 if job == "":
-                    msgs = ("Customer: " + tenant_name +
+                    msgs = ("Tenant: " + tenant_name +
                             ", Filename: " + filename + " not ok for previous day /")
                 else:
-                    msgs = ("Customer: " + tenant_name + ", Job: " +
+                    msgs = ("Tenant: " + tenant_name + ", Job: " +
                             job + ", Filename: " + filename + " not ok for previous day /")
                 warning_msg += (msgs + " ")
 
