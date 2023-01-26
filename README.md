@@ -6,4 +6,12 @@ Steps of the probe are:
 1) contact the POEM's `/api/v2/internal/public_tenants` to find out the list of configured tenants
 2) query local `/etc/argo-connectors/global.conf` to find out where is the root directory with the state files - `InputState.SaveDir`
 3) query each individual tenant configuration file to get a list of configured jobs/reports
-4) check content of `InputState.SaveDir/<TENANT_NAME>/{topology-ok, downtimes-ok}` and `InputSave.SaveDir/<TENANT_NAME>/<JOB_NAME>/{metricprofile-ok, weights-ok}` state files
+4) check `True/False` content of `InputState.SaveDir/<TENANT_NAME>/{topology-ok, downtimes-ok}` and `InputSave.SaveDir/<TENANT_NAME>/<JOB_NAME>/{metricprofile-ok, weights-ok}` state files
+
+Probe reports `CRITICAL` status if any of running connectors are failing for last three days in a row and `WARNING` if connector fails for previous day.
+
+## Usage
+
+```
+./connectors-probe -H poem.devel.argo.grnet.gr
+```
