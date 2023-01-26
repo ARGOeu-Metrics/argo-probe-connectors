@@ -194,21 +194,21 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
             for idx, sublist in enumerate(missing_files):
                 for elem in sublist:
                     nagios.setCode(nagios.CRITICAL)
-                    msg = ("CRITICAL - Customer: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
+                    msg = ("Customer: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
                            " is missing for last " + str(days_num) + " days!" + " /")
                     critical_msg += (msg + " ")
 
         if missing_ystday_files != "":
             for i in range(len(missing_ystday_tenant)):
                 nagios.setCode(nagios.CRITICAL)
-                msg = ("CRITICAL - Customer: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
+                msg = ("Customer: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
                        " is missing for last day!" + " /")
                 critical_msg += (msg + " ")
 
         if missing_today_files != "":
             for i in range(len(missing_today_tenant)):
                 nagios.setCode(nagios.CRITICAL)
-                msg = ("CRITICAL - Customer: " + missing_today_tenant[i] + ", State of a file: " + missing_today_files[i].upper() +
+                msg = ("Customer: " + missing_today_tenant[i] + ", State of a file: " + missing_today_files[i].upper() +
                        " is missing for today!" + " /")
                 critical_msg += (msg + " ")
 
@@ -219,26 +219,26 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
             if all(item == "False" for item in result[-(int(days_num)):]):
                 nagios.setCode(nagios.CRITICAL)
                 if job == "":
-                    msg = ("CRITICAL - Customer: " + tenant_name + ", File: " + filename +
+                    msg = ("Customer: " + tenant_name + ", File: " + filename +
                            " not ok for last " + str(days_num) + " days!" + " /")
                 else:
-                    msg = ("CRITICAL - Customer: " + tenant_name + ", Job: " + job + ", File: " +
+                    msg = ("Customer: " + tenant_name + ", Job: " + job + ", File: " +
                            filename + " not ok for last " + str(days_num) + " days!" + " /")
                 critical_msg += (msg + " ")
 
             elif result[-1] == "False":
                 nagios.setCode(nagios.WARNING)
                 if job == "":
-                    msgs = ("WARNING - Customer: " + tenant_name +
-                            ", Filename: " + filename + " /")
+                    msgs = ("Customer: " + tenant_name +
+                            ", Filename: " + filename + " not ok for previous day /")
                 else:
-                    msgs = ("WARNING - Customer: " + tenant_name + ", Job: " +
-                            job + ", Filename: " + filename + " /")
+                    msgs = ("Customer: " + tenant_name + ", Job: " +
+                            job + ", Filename: " + filename + " not ok for previous day /")
                 warning_msg += (msgs + " ")
 
         if len(list_root) == 0:
             nagios.setCode(nagios.CRITICAL)
-            nagios.writeCriticalMessage("CRITICAL - SaveDir is empty")
+            nagios.writeCriticalMessage("SaveDir is empty")
         else:
             nagios.writeCriticalMessage(critical_msg[:-2])
             nagios.writeWarningMessage(warning_msg[:-2])
@@ -246,19 +246,19 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
     except requests.exceptions.RequestException as e:
         nagios.setCode(nagios.CRITICAL)
         nagios.writeCriticalMessage(
-            f"CRITICAL - API cannot connect to https://{arguments.hostname}/api/v2/internal/public_tenants/:{errmsg_from_excp(e)}")
+            f"API cannot connect to https://{arguments.hostname}/api/v2/internal/public_tenants/:{errmsg_from_excp(e)}")
 
     except ValueError as e:
         nagios.setCode(nagios.CRITICAL)
-        nagios.writeCriticalMessage(f"CRITICAL - {errmsg_from_excp(e)}")
+        nagios.writeCriticalMessage(f"{errmsg_from_excp(e)}")
 
     except OSError as e:
         nagios.setCode(nagios.CRITICAL)
-        nagios.writeCriticalMessage(f"CRITICAL - {errmsg_from_excp(e)}")
+        nagios.writeCriticalMessage(f"{errmsg_from_excp(e)}")
 
     except Exception as e:
         nagios.setCode(nagios.CRITICAL)
-        nagios.writeCriticalMessage(f"CRITICAL - {errmsg_from_excp(e)}")
+        nagios.writeCriticalMessage(f"{errmsg_from_excp(e)}")
 
     print(nagios.getMsg())
     raise SystemExit(nagios.getCode())
