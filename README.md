@@ -22,7 +22,10 @@ optional arguments:
   -H HOSTNAME  SuperPOEM hostname
 ```
 
+Example of probe run with different status messages:
 ```
 ./connectors-probe -H poem.devel.argo.grnet.gr
 OK - All connectors are working fine
+WARNING - Tenant: EGI, Filename: TOPOLOGY not ok for previous day
+WARNING - Tenant: EUDAT, Filename: TOPOLOGY not ok for previous day / Tenant: SDC, Filename: DOWNTIMES not ok for previous day
 ```
