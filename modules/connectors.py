@@ -157,8 +157,6 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         for tenant in get_tenants:
             if tenant["name"] in arguments.skip:
                 continue
-            else:
-                tenant
 
             for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
                 files_filtered = [item for item in files if any(
