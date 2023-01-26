@@ -12,6 +12,17 @@ Probe reports `CRITICAL` status if any of running connectors are failing for las
 
 ## Usage
 
+Default arguments:
+```
+$ /usr/libexec/argo/probes/connectors/connectors-probe -h
+usage: connectors-probe [-h] -H HOSTNAME
+
+optional arguments:
+  -h, --help   show this help message and exit
+  -H HOSTNAME  SuperPOEM hostname
+```
+
 ```
 ./connectors-probe -H poem.devel.argo.grnet.gr
+OK - All connectors are working fine
 ```
