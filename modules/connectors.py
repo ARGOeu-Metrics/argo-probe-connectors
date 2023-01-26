@@ -86,7 +86,6 @@ def return_missing_file_n_tenant(list_files, dates, list_root):
                 for sublist in result_in_dates]
     result_y = [[item.split("_")[0] for item in sublist]
                 for sublist in result_out_dates]
-
     results = list()
     for sublist_x, sublist_y in zip(result_x, result_y):
         results.append(set(sublist_y).difference(set(sublist_x)))
@@ -154,7 +153,11 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
         list_paths = list()
         list_files = list()
         list_root = list()
+
         for tenant in get_tenants:
+            if tenant["name"] in arguments.skip:
+                continue
+
             for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
                 files_filtered = [item for item in files if any(
                     item.startswith(file_name) for file_name in file_names)]
@@ -268,6 +271,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', dest='hostname',
                         required=True, type=str, help='SuperPOEM hostname')
+    parser.add_argument('-s', dest='skip',
+                        required=False, type=str, nargs='+', help='skip tenant')
 
     cmd_options = parser.parse_args()
     global_conf = Global(None)
