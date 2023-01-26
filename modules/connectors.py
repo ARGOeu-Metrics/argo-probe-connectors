@@ -269,7 +269,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', dest='hostname',
-                        required=True, type=str, help='hostname')
+                        required=True, type=str, help='SuperPOEM hostname')
 
     cmd_options = parser.parse_args()
     global_conf = Global(None)
