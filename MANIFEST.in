@@ -1,0 +1,3 @@
+include src/*
+include modules/*
+include argo-probe-connectors.spec
