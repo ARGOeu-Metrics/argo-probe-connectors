@@ -1,17 +1,16 @@
-# sitelib
 %define dir /usr/libexec/argo/probes/connectors
 
-Name: argo-probe-connectors
-Summary: Multi-tenant aware probes checking argo-connectors.
-Version: 0.1.0
-Release: 1%{?dist}
-License: ASL 2.0
-Source0: %{name}-%{version}.tar.gz
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-Group: Network/Monitoring
-BuildArch: noarch
+Name:          argo-probe-connectors
+Summary:       Multi-tenant aware probes checking argo-connectors.
+Version:       0.1.1
+Release:       1%{?dist}
+License:       ASL 2.0
+Source0:       %{name}-%{version}.tar.gz
+BuildRoot:     %{_tmppath}/%{name}-%{version}-%{release}-root
+Group:         Network/Monitoring
+BuildArch:     noarch
 BuildRequires: python3-devel
-Requires: python36-requests
+Requires:      python36-requests
 
 %description
 This package includes probe that check argo-connectors component.
