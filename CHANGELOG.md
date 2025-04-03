@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2025-04-03
+
+### Changed
+
+* ARGO-4735 Refine argo-probe-connectors for Rocky 9 deployment
+
 ## [0.1.1] - 2023-02-01
 
 ### Changed
