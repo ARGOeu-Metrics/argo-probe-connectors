@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2025-06-30
+
+### Fixed
+
+ARGO-4903 connectors-probe wrongly picks tenant name
+
 ## [0.1.2] - 2025-04-03
 
 ### Changed
