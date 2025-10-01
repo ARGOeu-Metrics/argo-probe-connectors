@@ -288,11 +288,10 @@ def main():
                         required=False, type=str, nargs='+', help='skip tenant')
 
     cmd_options = parser.parse_args()
-    global_conf = Global(None)
-    options = global_conf.parse()
 
-    root_directory = options['inputstatesavedir']
-    days_num = int(options['inputstatedays'])
+    globopts = Global('connectors-probe')
+    root_directory = globopts.options()['inputstatesavedir']
+    days_num = int(Global.options()['inputstatedays'])
     todays_date = datetime.today()
 
     days = []
