@@ -6,7 +6,7 @@ import itertools
 
 from datetime import datetime, timedelta
 from itertools import groupby, zip_longest
-from argo_connectors.config import Global
+from argo_connectors.config.glob import Global
 from argo_probe_connectors.NagiosResponse import NagiosResponse
 from argo_probe_connectors.utils import errmsg_from_excp
 
@@ -53,7 +53,6 @@ def remove_duplicates(s):
 
 
 def return_missing_file_n_tenant(list_files, dates, list_root, root_directory):
-
     result_in_dates_sublists = list()
     result_in_dates = list()
     result_out_dates = list()
