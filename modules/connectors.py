@@ -144,16 +144,15 @@ def extract_tenant_path(root_dir, path, job_names):
 
 
 downtime_state = 'downtimes-ok'
-metricprofile_state = 'metricprofile-ok'
 topology_state = 'topology-ok'
+servtype_state = 'services-ok'
 weights_state = 'weights-ok'
 
 
 def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_directory):
     nagios = NagiosResponse("All connectors are working fine.")
 
-    file_names = [downtime_state, metricprofile_state,
-                  topology_state, weights_state]
+    file_names = [downtime_state, topology_state, weights_state, servtype_state]
 
     try:
         get_tenants = requests.get(
