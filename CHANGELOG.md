@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.4] - 2025-12-08
+
+### Changed
+
+* ARGO-5140 Remove metric profile state check in argo-probe-connectors
+
+### Fixed
+
+* ARGO-5121 Fix connectors-probe with latest changes in configuration handling of argo-connectors
+
 ## [0.1.3] - 2025-06-30
 
 ### Fixed
