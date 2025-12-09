@@ -2,7 +2,7 @@
 
 Name:          argo-probe-connectors
 Summary:       Multi-tenant aware probes checking argo-connectors.
-Version:       0.1.3
+Version:       0.1.4
 Release:       1%{?dist}
 License:       ASL 2.0
 Source0:       %{name}-%{version}.tar.gz

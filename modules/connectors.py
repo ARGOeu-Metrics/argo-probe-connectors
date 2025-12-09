@@ -6,7 +6,7 @@ import itertools
 
 from datetime import datetime, timedelta
 from itertools import groupby, zip_longest
-from argo_connectors.config import Global
+from argo_connectors.config.glob import Global
 from argo_probe_connectors.NagiosResponse import NagiosResponse
 from argo_probe_connectors.utils import errmsg_from_excp
 
@@ -40,8 +40,7 @@ def remove_duplicates(s):
     return no_duplicates
 
 
-def return_missing_file_n_tenant(list_files, dates, list_root):
-
+def return_missing_file_n_tenant(list_files, dates, list_root, root_directory):
     result_in_dates_sublists = list()
     result_in_dates = list()
     result_out_dates = list()
@@ -134,16 +133,15 @@ def extract_tenant_path(root_dir, path, job_names):
 
 
 downtime_state = 'downtimes-ok'
-metricprofile_state = 'metricprofile-ok'
 topology_state = 'topology-ok'
+servtype_state = 'services-ok'
 weights_state = 'weights-ok'
 
 
 def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
     nagios = NagiosResponse("All connectors are working fine.")
 
-    file_names = [downtime_state, metricprofile_state,
-                  topology_state, weights_state]
+    file_names = [downtime_state, topology_state, weights_state, servtype_state]
 
     try:
         get_tenants = requests.get(
@@ -276,11 +274,10 @@ def main():
                         required=False, type=str, nargs='+', help='skip tenant')
 
     cmd_options = parser.parse_args()
-    global_conf = Global(None)
-    options = global_conf.parse()
 
-    root_directory = options['inputstatesavedir']
-    days_num = int(options['inputstatedays'])
+    globopts = Global('connectors-probe')
+    root_directory = globopts.options()['inputstatesavedir']
+    days_num = int(Global.options()['inputstatedays'])
     todays_date = datetime.today()
 
     days = []
