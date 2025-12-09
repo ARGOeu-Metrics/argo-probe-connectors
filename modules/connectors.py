@@ -26,18 +26,6 @@ def check_file_ok(fname):
         raise e
 
 
-def extract_tenant_name(jobdir, root_directory):
-    rel_jobdir = jobdir.split(root_directory)[1]
-    if '/' in rel_jobdir:
-        rel_jobdir = rel_jobdir.split('/')
-
-    for name in rel_jobdir:
-        if name:
-            return name
-
-    return 'UNKNOWN'
-
-
 def grouper(path):
     d, f = os.path.split(path)
     f = f.split('-')[0]
@@ -74,7 +62,8 @@ def return_missing_file_n_tenant(list_files, dates, list_root, root_directory):
         list_missing_today.append(miss_today)
     miss_today_position = [i for i, sublist1 in enumerate(list_missing_today) if any(
         ['downtimes-ok' in sublist2 for sublist2 in sublist1])]
-    missing_today_tenant = [extract_tenant_name(list_root[i], root_directory) for i in miss_today_position]
+    missing_today_tenant = [list_root[i].split(
+        "/")[6] for i in miss_today_position]
     missing_today_files = [
         x for sublist1 in list_missing_today for sublist2 in sublist1 for x in sublist2 if x != []]
 
@@ -87,8 +76,8 @@ def return_missing_file_n_tenant(list_files, dates, list_root, root_directory):
 
     missing_ystday_positions = [i for i, l1 in enumerate(
         list_missing_yestday) for j, l2 in enumerate(l1) for k, item in enumerate(l2) if item != []]
-    missing_ystday_tenant = [extract_tenant_name(list_root[i], root_directory)
-                             for i in missing_ystday_positions]
+    missing_ystday_tenant = [list_root[i].split(
+        "/")[6] for i in missing_ystday_positions]
     missing_ystday_files = [
         x for sublist1 in list_missing_yestday for sublist2 in sublist1 for x in sublist2 if x != []]
 
@@ -101,7 +90,7 @@ def return_missing_file_n_tenant(list_files, dates, list_root, root_directory):
         results.append(set(sublist_y).difference(set(sublist_x)))
     missing = [list(s) for s in results]
     missing_elem_positions = [i for i, elem in enumerate(missing) if elem]
-    missing_tenant = [extract_tenant_name(list_root[i], root_directory)
+    missing_tenant = [list_root[i].split("/")[6]
                       for i in missing_elem_positions]
     missing_files = [elem for elem in missing if len(elem) > 0]
 
@@ -149,7 +138,7 @@ servtype_state = 'services-ok'
 weights_state = 'weights-ok'
 
 
-def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_directory):
+def process_customer_jobs(arguments, root_dir, date_sufix, days_num):
     nagios = NagiosResponse("All connectors are working fine.")
 
     file_names = [downtime_state, topology_state, weights_state, servtype_state]
@@ -162,7 +151,6 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
         list_paths = list()
         list_files = list()
         list_root = list()
-
 
         for tenant in get_tenants:
             if (arguments.skip is not None \
@@ -198,7 +186,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
                       ).strftime('%Y_%m_%d') for x in range(4)]
 
         missing_tenant, missing_files, missing_ystday_tenant, missing_ystday_files, missing_today_tenant, missing_today_files = return_missing_file_n_tenant(
-            list_files, date_list, list_root, root_directory)
+            list_files, date_list, list_root)
         sorted_file_copy, sorted_file = sort_n_copy_files(list_paths)
 
         warning_msg = ""
@@ -231,7 +219,6 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
                 root_dir, path, job_names)
 
             if all(item == "False" for item in result[-(int(days_num)):]):
-
                 nagios.setCode(nagios.CRITICAL)
                 if job == "":
                     msg = ("Tenant: " + tenant_name + ", File: " + filename +
@@ -301,7 +288,7 @@ def main():
     for day in days:
         date_sufix.append(day.strftime("%Y_%m_%d"))
 
-    process_customer_jobs(cmd_options, root_directory, date_sufix, days_num, root_directory)
+    process_customer_jobs(cmd_options, root_directory, date_sufix, days_num)
 
 
 if __name__ == "__main__":
