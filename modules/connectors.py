@@ -149,10 +149,55 @@ servtype_state = 'services-ok'
 weights_state = 'weights-ok'
 
 
+def normalize_tenant_name(tenant_name):
+    return tenant_name.strip().upper()
+
+
+def normalize_connector_name(connector_name):
+    return connector_name.strip().lower()
+
+
+def parse_noconnector_rules(noconnector_items, valid_connectors):
+    parsed_rules = dict()
+    if not noconnector_items:
+        return parsed_rules
+
+    normalized_valid = {normalize_connector_name(conn) for conn in valid_connectors}
+    for item in noconnector_items:
+        if "=" not in item:
+            raise ValueError(
+                f"Invalid value '{item}' for -n. Expected format TENANT=connector")
+
+        tenant_name, connector_name = item.split("=", 1)
+        tenant_name = normalize_tenant_name(tenant_name)
+        connector_name = normalize_connector_name(connector_name)
+
+        if not tenant_name:
+            raise ValueError(
+                f"Invalid value '{item}' for -n. Tenant cannot be empty")
+        if not connector_name:
+            raise ValueError(
+                f"Invalid value '{item}' for -n. Connector cannot be empty")
+        if connector_name not in normalized_valid:
+            raise ValueError(
+                f"Invalid connector '{connector_name}' for -n. Allowed connectors: {', '.join(sorted(normalized_valid))}")
+
+        parsed_rules.setdefault(tenant_name, set()).add(connector_name)
+
+    return parsed_rules
+
+
+def connector_is_skipped(skip_map, tenant_name, connector_name):
+    tenant_key = normalize_tenant_name(tenant_name)
+    connector_key = normalize_connector_name(connector_name)
+    return connector_key in skip_map.get(tenant_key, set())
+
+
 def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_directory):
     nagios = NagiosResponse("All connectors are working fine.")
 
     file_names = [downtime_state, topology_state, weights_state, servtype_state]
+    noconnector_map = parse_noconnector_rules(arguments.noconnector, file_names)
 
     try:
         get_tenants = requests.get(
@@ -165,13 +210,17 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
 
 
         for tenant in get_tenants:
+            tenant_name = tenant["name"]
             if (arguments.skip is not None \
-                and tenant["name"] in arguments.skip):
+                and tenant_name in arguments.skip):
                 continue
 
-            for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant["name"]}', topdown=True):
+            tenant_file_names = [name for name in file_names if not connector_is_skipped(
+                noconnector_map, tenant_name, name)]
+
+            for (root, dirs, files) in os.walk(f'{root_dir + "/" + tenant_name}', topdown=True):
                 files_filtered = [item for item in files if any(
-                    item.startswith(file_name) for file_name in file_names)]
+                    item.startswith(file_name) for file_name in tenant_file_names)]
 
                 list_files.append(files_filtered)
                 list_root.append(root)
@@ -182,7 +231,7 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
 
                 for file in files:
                     file_no_date = file.split("_")[0]
-                    if file_no_date in file_names:
+                    if file_no_date in tenant_file_names:
                         file_path = (root + "/" + file_no_date)
 
                         dates = create_dates(file, date_sufix)
@@ -207,6 +256,8 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
         if missing_files != "":
             for idx, sublist in enumerate(missing_files):
                 for elem in sublist:
+                    if connector_is_skipped(noconnector_map, missing_tenant[idx], elem):
+                        continue
                     nagios.setCode(nagios.CRITICAL)
                     msg = ("Tenant: " + missing_tenant[idx] + ", State of a file: " + elem.upper() +
                            " is missing for last " + str(days_num) + " days!" + " /")
@@ -214,6 +265,8 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
 
         if missing_ystday_files != "":
             for i in range(len(missing_ystday_tenant)):
+                if connector_is_skipped(noconnector_map, missing_ystday_tenant[i], missing_ystday_files[i]):
+                    continue
                 nagios.setCode(nagios.CRITICAL)
                 msg = ("Tenant: " + missing_ystday_tenant[i] + ", State of a file: " + missing_ystday_files[i].upper() +
                        " is missing for last day!" + " /")
@@ -221,6 +274,8 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
 
         if missing_today_files != "":
             for i in range(len(missing_today_tenant)):
+                if connector_is_skipped(noconnector_map, missing_today_tenant[i], missing_today_files[i]):
+                    continue
                 nagios.setCode(nagios.CRITICAL)
                 msg = ("Tenant: " + missing_today_tenant[i] + ", State of a file: " + missing_today_files[i].upper() +
                        " is missing for today!" + " /")
@@ -229,6 +284,8 @@ def process_customer_jobs(arguments, root_dir, date_sufix, days_num, root_direct
         for path, result in zip_longest(sorted_file_copy, sorted_file):
             tenant_name, job, filename = extract_tenant_path(
                 root_dir, path, job_names)
+            if connector_is_skipped(noconnector_map, tenant_name, filename):
+                continue
 
             if all(item == "False" for item in result[-(int(days_num)):]):
 
@@ -285,6 +342,8 @@ def main():
                         required=True, type=str, help='SuperPOEM hostname')
     parser.add_argument('-s', dest='skip',
                         required=False, type=str, nargs='+', help='skip tenant')
+    parser.add_argument('-n', dest='noconnector',
+                        required=False, type=str, action='append', help='skip connector state for a tenant (TENANT=connector)')
 
     cmd_options = parser.parse_args()
 
