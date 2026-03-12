@@ -15,12 +15,24 @@ Probe reports `CRITICAL` status if any of running connectors are failing for las
 Default arguments:
 ```
 $ /usr/libexec/argo/probes/connectors/connectors-probe -h
-usage: connectors-probe [-h] -H HOSTNAME
+usage: connectors-probe [-h] -H HOSTNAME [-s SKIP [SKIP ...]]
+                        [-n NOCONNECTOR]
 
 optional arguments:
   -h, --help   show this help message and exit
   -H HOSTNAME  SuperPOEM hostname
   -s SKIP [SKIP ...]  skip tenant
+  -n NOCONNECTOR  skip connector state check for a tenant (TENANT=connector)
+```
+
+`-n` can be specified multiple times to skip different connector states per tenant.
+Supported connector values are: `downtimes-ok`, `topology-ok`, `services-ok`, `weights-ok`.
+
+Example:
+```
+./connectors-probe -H poem.devel.argo.grnet.gr \
+  -n EGI=weights-ok \
+  -n EUDAT=topology-ok
 ```
 
 Example of probe run with different status messages:
